@@ -3,7 +3,8 @@ package bot
 import (
 	"fmt"
 
-	"../config"
+	"github.com/NatoBoram/Discord-Phone/config"
+
 	"github.com/bwmarrin/discordgo"
 )
 
