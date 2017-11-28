@@ -13,15 +13,10 @@ var (
 	Token string
 
 	// Calls : List of calls
-	Calls []*callStruct
+	Calls map[string][]string
 )
 
-type callStruct struct {
-	From string
-	To   []string
-}
-
-// ReadConfig : Reads the whole configuration.
+// ReadToken : Reads the whole configuration.
 func ReadToken() error {
 
 	// Read the config file
@@ -51,11 +46,17 @@ func ReadCalls() error {
 		return err
 	}
 
+	Calls = make(map[string][]string)
+
 	// Json -> String
 	err = json.Unmarshal(file, &Calls)
 	if err != nil {
 		fmt.Println(err.Error())
 		return err
+	}
+
+	if len(Calls) == 0 {
+		Calls = make(map[string][]string)
 	}
 
 	return nil

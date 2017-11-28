@@ -2,6 +2,7 @@ package bot
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/NatoBoram/Discord-Phone/config"
 
@@ -12,22 +13,29 @@ import (
 var BotID string
 var goBot *discordgo.Session
 
+// Globals
+var callPrefix = "call "
+var hangUpPrefix = "hang up "
+
 // Start : Starts the bot.
 func Start() {
 
 	// Go online!
 	goBot, err := discordgo.New("Bot " + config.Token)
 	if err != nil {
+		fmt.Println("Couldn't get online.")
 		fmt.Println(err.Error())
 		return
 	}
 
 	// Get Bot ID
-	st, err := goBot.User("@me")
+	u, err := goBot.User("@me")
 	if err != nil {
+		fmt.Println("Couldn't get the BotID.")
 		fmt.Println(err.Error())
+		return
 	}
-	BotID = st.ID
+	BotID = u.ID
 
 	// Hey, listen!
 	goBot.AddHandler(messageCreateHandler)
@@ -54,16 +62,31 @@ func messageCreateHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 	channel, err := s.State.Channel(m.ChannelID)
 	if err != nil {
 		fmt.Println(err.Error())
+		return
 	}
 
 	// Get guild structure
 	guild, err := s.State.Guild(channel.GuildID)
 	if err != nil {
 		fmt.Println(err.Error())
+		return
 	}
 
 	// Guild Owner
 	if m.Author.ID == guild.OwnerID {
 
+		// Starting a call?
+		if strings.HasPrefix(m.Content, callPrefix) {
+			createCall(s, m)
+		}
+
+		// Ending a call?
+		if strings.HasPrefix(m.Content, hangUpPrefix) {
+			hangUp(s, m)
+		}
 	}
+
+	// Foward
+	foward(s, m)
+
 }

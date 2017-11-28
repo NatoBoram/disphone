@@ -3,26 +3,25 @@ package main
 import (
 	"fmt"
 
-	"./bot"
-	"./config"
+	"github.com/NatoBoram/Discord-Phone/bot"
+	"github.com/NatoBoram/Discord-Phone/config"
 )
 
 func main() {
 
-	// Reads the configuration
+	// Reads the token
 	err := config.ReadToken()
 	if err != nil {
 		fmt.Println(err.Error())
 		return
 	}
 
+	// Reads the active calls
 	err = config.ReadCalls()
 	if err != nil {
 		fmt.Println(err.Error())
 		config.WriteCalls()
 	}
-
-	// Reads active phone calls
 
 	// License
 	fmt.Println("")
