@@ -61,6 +61,10 @@ func createCall(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 func hangUp(s *discordgo.Session, m *discordgo.MessageCreate) {
 
+	if m.Author.ID == BotID {
+		return
+	}
+
 	command := m.Content
 
 	// Look for ChannelID
