@@ -1,3 +1,3 @@
 #!/bin/sh
-go get -fix -u -v github.com/bwmarrin/discordgo github.com/NatoBoram/Go-Phone
+go get -fix -u github.com/NatoBoram/Go-Phone
 go run main.go
