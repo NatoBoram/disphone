@@ -78,15 +78,16 @@ func messageCreateHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 		// Starting a call?
 		if strings.HasPrefix(m.Content, callPrefix) {
 			createCall(s, m)
+			return
 		}
 
 		// Ending a call?
 		if strings.HasPrefix(m.Content, hangUpPrefix) {
 			hangUp(s, m)
+			return
 		}
 	}
 
 	// Foward
 	foward(s, m)
-
 }
