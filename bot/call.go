@@ -44,9 +44,9 @@ func createCall(s *discordgo.Session, m *discordgo.MessageCreate) {
 			if exists {
 
 				// Existing channel?
-				fmt.Println("Trying to add channel " + to + " to the list!")
+				config.Calls[m.ChannelID] = rsfa(config.Calls[m.ChannelID], to)
 				config.Calls[m.ChannelID] = append(config.Calls[m.ChannelID], to)
-				fmt.Println("Success!")
+
 			} else {
 
 				// New channel?
@@ -73,14 +73,7 @@ func hangUp(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if len(split) == 2 {
 		to := strings.Trim(split[1], " ")
 
-		// Get channel structure
-		_, err := s.State.Channel(to)
-		if err != nil {
-			fmt.Println("This channel doesn't exist.")
-			fmt.Println(err.Error())
-			return
-		}
-
+		// Remove call
 		_, exists := config.Calls[m.ChannelID]
 		if exists {
 			config.Calls[m.ChannelID] = rsfa(config.Calls[m.ChannelID], to)
@@ -118,8 +111,11 @@ func foward(s *discordgo.Session, m *discordgo.MessageCreate) {
 			// Check if they call back
 			tos2, exists2 := config.Calls[to]
 			if exists2 && len(tos2) > 0 {
+
+				// For each in tos2
 				for _, to2 := range tos2 {
 
+					// Check if they call the source
 					if m.ChannelID == to2 {
 						_, err := s.ChannelMessageSend(to, "<@"+m.Author.ID+"> : "+m.Content)
 						if err != nil {
