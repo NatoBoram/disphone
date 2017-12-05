@@ -85,13 +85,14 @@ func hangUp(s *discordgo.Session, m *discordgo.MessageCreate) {
 }
 
 // rsfa : Remove String From Array. https://stackoverflow.com/a/34070691/5083247
-func rsfa(s []string, r string) []string {
-	for i, v := range s {
-		if v == r {
-			return append(s[:i], s[i+1:]...)
+func rsfa(a []string, s string) []string {
+	var n []string
+	for i, v := range a {
+		if v != s {
+			n = append(n, a[i])
 		}
 	}
-	return s
+	return n
 }
 
 func foward(s *discordgo.Session, m *discordgo.MessageCreate) {
