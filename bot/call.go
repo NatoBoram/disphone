@@ -22,8 +22,17 @@ func createCall(s *discordgo.Session, m *discordgo.MessageCreate) {
 		// Get channel structure
 		channel, err := s.State.Channel(to)
 		if err != nil {
-			fmt.Println("Channel" + to + " doesn't exist.")
+
+			// Just in case
 			fmt.Println(err.Error())
+
+			// Feedback
+			_, err := s.ChannelMessageSend(m.ChannelID, "Channel "+to+" doesn't exist.")
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+
 			return
 		}
 		fmt.Println("Channel name : " + channel.Name)
@@ -48,6 +57,14 @@ func createCall(s *discordgo.Session, m *discordgo.MessageCreate) {
 				return
 			}
 			return
+		} else {
+
+			// Feedback
+			_, err := s.ChannelMessageSend(m.ChannelID, "Call to "+channel.Name+" has started. Make sure the target channel's server owner calls you back by typing `call "+m.ChannelID+"`.")
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
 		}
 
 		// First call ever?
@@ -136,7 +153,7 @@ func foward(s *discordgo.Session, m *discordgo.MessageCreate) {
 					if m.ChannelID == to2 {
 						_, err := s.ChannelMessageSend(to, "<@"+m.Author.ID+"> : "+m.Content)
 						if err != nil {
-							fmt.Println("Couldn't foward the message!")
+							fmt.Println("Couldn't foward the message from " + m.ChannelID + " to " + to)
 							fmt.Println(err.Error())
 							return
 						}
