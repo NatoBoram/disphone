@@ -30,7 +30,23 @@ func createCall(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 		// Woah there!
 		if channel.ID == m.ChannelID {
-			fmt.Println(m.Author.Username + " wanted " + m.ChannelID + " to call itself.")
+
+			// Channel called itself
+			_, err := s.ChannelMessageSend(m.ChannelID, "You can't call yourself!")
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+			return
+
+		} else if channel.Type != discordgo.ChannelTypeGuildText {
+
+			// Channel is not a text channel
+			_, err := s.ChannelMessageSend(m.ChannelID, channel.Name+" is not a text channel.")
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
 			return
 		}
 
