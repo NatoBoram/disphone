@@ -29,6 +29,7 @@ func createCall(s *discordgo.Session, m *discordgo.MessageCreate) {
 			// Feedback
 			_, err := s.ChannelMessageSend(m.ChannelID, "Channel "+to+" doesn't exist.")
 			if err != nil {
+				fmt.Println("Couldn't say that " + to + " doesn't exist.")
 				fmt.Println(err.Error())
 				return
 			}
@@ -43,6 +44,7 @@ func createCall(s *discordgo.Session, m *discordgo.MessageCreate) {
 			// Channel called itself
 			_, err := s.ChannelMessageSend(m.ChannelID, "You can't call yourself!")
 			if err != nil {
+				fmt.Println("Couldn't tell " + m.Author.Username + " that it can't make a channel call itself.")
 				fmt.Println(err.Error())
 				return
 			}
@@ -53,15 +55,27 @@ func createCall(s *discordgo.Session, m *discordgo.MessageCreate) {
 			// Channel is not a text channel
 			_, err := s.ChannelMessageSend(m.ChannelID, channel.Name+" is not a text channel.")
 			if err != nil {
+				fmt.Println("Couldn't tell " + m.Author.Username + " that " + channel.Name + " is not a text channel.")
 				fmt.Println(err.Error())
 				return
 			}
 			return
 		} else {
 
-			// Feedback
-			_, err := s.ChannelMessageSend(m.ChannelID, "Call to "+channel.Name+" has started. Make sure the target channel's server owner calls you back by typing `call "+m.ChannelID+"`.")
+			// Get the guild structure
+			guild, err := s.State.Guild(channel.GuildID)
 			if err != nil {
+				fmt.Println("Couldn't get a guild structure.")
+				fmt.Println("Channel : " + channel.Name)
+				fmt.Println(err.Error())
+				return
+			}
+
+			// Feedback
+			_, err = s.ChannelMessageSend(m.ChannelID, "Call to <#"+channel.ID+"> has started. Make sure <@"+guild.OwnerID+"> calls you back by typing `call "+m.ChannelID+"`.")
+			if err != nil {
+				fmt.Println("Couldn't send a message.")
+				fmt.Println("Channel : " + m.ChannelID)
 				fmt.Println(err.Error())
 				return
 			}
