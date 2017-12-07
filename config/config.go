@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 var (
@@ -80,4 +82,42 @@ func WriteCalls() error {
 	}
 
 	return nil
+}
+
+// Clean : Removes non-existent channels from the list of calls.
+func Clean(s *discordgo.Session) {
+
+	// For each from
+	for key, array := range Calls {
+
+		// Check if channel exists
+		from, err := s.State.Channel(key)
+		if err != nil {
+			delete(Calls, key)
+			fmt.Println("Removed Call : " + key)
+		} else {
+
+			// For each to
+			for _, value := range array {
+
+				// Check if channel exists
+				_, err := s.State.Channel(value)
+				if err != nil {
+					rsfa(array, value)
+					fmt.Println("Removed " + key + " from " + from.Name + ".")
+				}
+			}
+		}
+	}
+}
+
+// rsfa : Remove String From Array.
+func rsfa(a []string, s string) []string {
+	var n []string
+	for i, v := range a {
+		if v != s {
+			n = append(n, a[i])
+		}
+	}
+	return n
 }
