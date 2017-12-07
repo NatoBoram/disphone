@@ -103,7 +103,7 @@ func Clean(s *discordgo.Session) {
 				// Check if channel exists
 				_, err := s.State.Channel(value)
 				if err != nil {
-					rsfa(array, value)
+					Calls[key] = rsfa(array, value)
 					fmt.Println("Removed " + key + " from " + from.Name + ".")
 				}
 			}
