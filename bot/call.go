@@ -10,99 +10,108 @@ import (
 
 func createCall(s *discordgo.Session, m *discordgo.MessageCreate) {
 
-	command := m.Content
-
 	// Look for ChannelID
-	split := strings.SplitAfter(command, callPrefix)
+	split := strings.SplitAfter(m.Content, callPrefix)
 
 	if len(split) == 2 {
-		to := strings.Trim(split[1], " ")
-		fmt.Println("Begin call to " + to + ".")
 
 		// Get channel structure
-		channel, err := s.State.Channel(to)
+		fromChannel, err := s.State.Channel(m.ChannelID)
+		if err != nil {
+			fmt.Println("Couldn't get a channel structure.")
+			fmt.Println("Message : " + m.Content)
+			fmt.Println(err.Error())
+			return
+		}
+
+		// Get channel structure
+		to := strings.Trim(split[1], " ")
+		toChannel, err := s.State.Channel(to)
 		if err != nil {
 
 			// Just in case
+			fmt.Println("Couldn't get a channel structure.")
+			fmt.Println("Channel ID : " + to)
 			fmt.Println(err.Error())
 
 			// Feedback
-			_, err := s.ChannelMessageSend(m.ChannelID, "Channel "+to+" doesn't exist.")
+			_, err := s.ChannelMessageSend(fromChannel.ID, "Channel "+to+" doesn't exist.")
 			if err != nil {
-				fmt.Println("Couldn't say that " + to + " doesn't exist.")
+				fmt.Println("Couldn't send a message.")
+				fmt.Println("Channel : " + fromChannel.Name)
 				fmt.Println(err.Error())
-				return
 			}
 
 			return
 		}
-		fmt.Println("Channel name : " + channel.Name)
+
+		fmt.Println("Channel name : " + toChannel.Name)
 
 		// Woah there!
-		if channel.ID == m.ChannelID {
+		if toChannel.ID == fromChannel.ID {
 
 			// Channel called itself
-			_, err := s.ChannelMessageSend(m.ChannelID, "You can't call yourself!")
-			if err != nil {
-				fmt.Println("Couldn't tell " + m.Author.Username + " that it can't make a channel call itself.")
-				fmt.Println(err.Error())
-				return
-			}
-			return
-
-		} else if channel.Type != discordgo.ChannelTypeGuildText {
-
-			// Channel is not a text channel
-			_, err := s.ChannelMessageSend(m.ChannelID, channel.Name+" is not a text channel.")
-			if err != nil {
-				fmt.Println("Couldn't tell " + m.Author.Username + " that " + channel.Name + " is not a text channel.")
-				fmt.Println(err.Error())
-				return
-			}
-			return
-		} else {
-
-			// Get the guild structure
-			guild, err := s.State.Guild(channel.GuildID)
-			if err != nil {
-				fmt.Println("Couldn't get a guild structure.")
-				fmt.Println("Channel : " + channel.Name)
-				fmt.Println(err.Error())
-				return
-			}
-
-			// Feedback
-			_, err = s.ChannelMessageSend(m.ChannelID, "Call to <#"+channel.ID+"> has started. Make sure <@"+guild.OwnerID+"> calls you back by typing `call "+m.ChannelID+"`.")
+			_, err := s.ChannelMessageSend(fromChannel.ID, "You can't call yourself!")
 			if err != nil {
 				fmt.Println("Couldn't send a message.")
-				fmt.Println("Channel : " + m.ChannelID)
+				fmt.Println("Channel : " + fromChannel.Name)
+				fmt.Println(err.Error())
+			}
+			return
+
+		} else if toChannel.Type != discordgo.ChannelTypeGuildText {
+
+			// Channel is not a text channel
+			_, err := s.ChannelMessageSend(fromChannel.ID, toChannel.Name+" is not a text channel.")
+			if err != nil {
+				fmt.Println("Couldn't send a message.")
+				fmt.Println("Channel : " + fromChannel.Name)
 				fmt.Println(err.Error())
 				return
 			}
+			return
 		}
 
 		// First call ever?
 		if len(config.Calls) == 0 {
 			config.Calls = make(map[string][]string)
-			config.Calls[m.ChannelID] = []string{to}
+			config.Calls[fromChannel.ID] = []string{to}
 		} else {
 
-			_, exists := config.Calls[m.ChannelID]
+			_, exists := config.Calls[fromChannel.ID]
 			if exists {
 
 				// Existing channel?
-				config.Calls[m.ChannelID] = rsfa(config.Calls[m.ChannelID], to)
-				config.Calls[m.ChannelID] = append(config.Calls[m.ChannelID], to)
+				config.Calls[fromChannel.ID] = rsfa(config.Calls[fromChannel.ID], to)
+				config.Calls[fromChannel.ID] = append(config.Calls[fromChannel.ID], to)
 
 			} else {
 
 				// New channel?
-				config.Calls[m.ChannelID] = []string{to}
+				config.Calls[fromChannel.ID] = []string{to}
 			}
 		}
 
 		// Save
 		config.WriteCalls()
+
+		// Get the guild structure
+		toGuild, err := s.State.Guild(toChannel.GuildID)
+		if err != nil {
+			fmt.Println("Couldn't get a guild structure.")
+			fmt.Println("Channel : " + toChannel.Name)
+			fmt.Println(err.Error())
+			return
+		}
+
+		// Feedback
+		_, err = s.ChannelMessageSend(fromChannel.ID, "Call to <#"+toChannel.ID+"> has started. Make sure <@"+toGuild.OwnerID+"> calls you back by typing `call "+fromChannel.ID+"`.")
+		if err != nil {
+			fmt.Println("Couldn't send a message.")
+			fmt.Println("Channel : " + fromChannel.ID)
+			fmt.Println(err.Error())
+			return
+		}
 	}
 }
 
