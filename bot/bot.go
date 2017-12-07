@@ -53,8 +53,6 @@ func Start() {
 
 func messageCreateHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 
-	config.Clean(s)
-
 	// Myself?
 	if m.Author.ID == BotID {
 		return
@@ -95,5 +93,6 @@ func messageCreateHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 
 	// Foward
+	config.Clean(s)
 	foward(s, m)
 }
