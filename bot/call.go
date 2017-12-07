@@ -131,7 +131,7 @@ func hangUp(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 }
 
-// rsfa : Remove String From Array. https://stackoverflow.com/a/34070691/5083247
+// rsfa : Remove String From Array.
 func rsfa(a []string, s string) []string {
 	var n []string
 	for i, v := range a {
