@@ -20,6 +20,7 @@ func main() {
 	err = config.ReadCalls()
 	if err != nil {
 		fmt.Println(err.Error())
+		config.Calls = make(map[string][]string)
 		config.WriteCalls()
 	}
 
