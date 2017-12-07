@@ -87,6 +87,8 @@ func WriteCalls() error {
 // Clean : Removes non-existent channels from the list of calls.
 func Clean(s *discordgo.Session) {
 
+	clean := false
+
 	// For each from
 	for key, array := range Calls {
 
@@ -95,6 +97,7 @@ func Clean(s *discordgo.Session) {
 		if err != nil {
 			delete(Calls, key)
 			fmt.Println("Removed Call : " + key)
+			clean = true
 		} else {
 
 			// For each to
@@ -103,11 +106,16 @@ func Clean(s *discordgo.Session) {
 				// Check if channel exists
 				_, err := s.State.Channel(value)
 				if err != nil {
-					Calls[key] = rsfa(array, value)
-					fmt.Println("Removed " + key + " from " + from.Name + ".")
+					Calls[key] = rsfa(Calls[key], value)
+					fmt.Println("Removed Call : " + from.Name + " / " + key + ".")
+					clean = true
 				}
 			}
 		}
+	}
+
+	if clean {
+		WriteCalls()
 	}
 }
 
