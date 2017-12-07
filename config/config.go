@@ -16,9 +16,12 @@ var (
 
 	// Calls : List of calls
 	Calls map[string][]string
+
+	// BotMaster : ID of the BotMaster
+	BotMaster string
 )
 
-// ReadToken : Reads the whole configuration.
+// ReadToken : Reads the token.
 func ReadToken() error {
 
 	// Read the config file
@@ -30,6 +33,26 @@ func ReadToken() error {
 
 	// Json -> String
 	err = json.Unmarshal(file, &Token)
+	if err != nil {
+		fmt.Println(err.Error())
+		return err
+	}
+
+	return nil
+}
+
+// ReadBotMaster : Reads the BotMaster ID
+func ReadBotMaster() error {
+
+	// Read the config file
+	file, err := ioutil.ReadFile("./master.json")
+	if err != nil {
+		fmt.Println(err.Error())
+		return err
+	}
+
+	// Json -> String
+	err = json.Unmarshal(file, &BotMaster)
 	if err != nil {
 		fmt.Println(err.Error())
 		return err

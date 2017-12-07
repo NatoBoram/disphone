@@ -24,6 +24,9 @@ func main() {
 		config.WriteCalls()
 	}
 
+	// Reads the BotMaster ID
+	config.ReadBotMaster()
+
 	// License
 	fmt.Println("")
 	fmt.Println("Discord-Phone : Makes phone calls between Discord servers.")
