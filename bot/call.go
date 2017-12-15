@@ -202,7 +202,15 @@ func foward(s *discordgo.Session, m *discordgo.MessageCreate) {
 						if err != nil {
 							fmt.Println("Couldn't foward the message from " + fromChannel.Name + " to " + toChannel.Name + ".")
 							fmt.Println(err.Error())
-							return
+						}
+
+						// Foward embeds
+						for x := 0; x < len(m.Embeds); x++ {
+							_, err = s.ChannelMessageSendEmbed(toChannel.ID, m.Embeds[x])
+							if err != nil {
+								fmt.Println("Couldn't foward an embed from " + fromChannel.Name + " to " + toChannel.Name + ".")
+								fmt.Println(err.Error())
+							}
 						}
 					}
 				}
