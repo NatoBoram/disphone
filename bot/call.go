@@ -162,8 +162,30 @@ func foward(s *discordgo.Session, m *discordgo.MessageCreate) {
 	tos, exists := config.Calls[m.ChannelID]
 	if exists && len(tos) > 0 {
 
+		// Get source channel
+		fromChannel, err := s.State.Channel(m.ChannelID)
+		if err != nil {
+			fmt.Println("Couldn't get a channel structure.")
+			fmt.Println("Author : " + m.Author.Username)
+			fmt.Println("Message : " + m.Content)
+			fmt.Println(err.Error())
+			return
+		}
+
+		// Clean before fowarding
+		config.Clean(s)
+
 		// For each to in tos
 		for _, to := range tos {
+
+			// Check if destination exists
+			toChannel, err := s.State.Channel(to)
+			if err != nil {
+				fmt.Println("Found an invalid destination.")
+				fmt.Println(err.Error())
+				config.Clean(s)
+				return
+			}
 
 			// Check if they call back
 			tos2, exists2 := config.Calls[to]
@@ -174,9 +196,11 @@ func foward(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 					// Check if they call the source
 					if m.ChannelID == to2 {
-						_, err := s.ChannelMessageSend(to, "<@"+m.Author.ID+"> : "+m.Content)
+
+						// Actual fowarding
+						_, err = s.ChannelMessageSend(toChannel.ID, "<@"+m.Author.ID+"> : "+m.Content)
 						if err != nil {
-							fmt.Println("Couldn't foward the message from " + m.ChannelID + " to " + to)
+							fmt.Println("Couldn't foward the message from " + fromChannel.Name + " to " + toChannel.Name + ".")
 							fmt.Println(err.Error())
 							return
 						}
