@@ -1,6 +1,7 @@
 # Discord-Phone
 
 [![Build Status](https://travis-ci.org/NatoBoram/Discord-Phone.svg?branch=master)](https://travis-ci.org/NatoBoram/Discord-Phone)
+[![Go Report Card](https://goreportcard.com/badge/github.com/NatoBoram/Discord-Phone)](https://goreportcard.com/report/github.com/NatoBoram/Discord-Phone)
 
 Simple phone call bot for Discord using [DiscordGo](https://github.com/bwmarrin/discordgo).
 
