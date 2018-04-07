@@ -1,5 +1,7 @@
 # Discord-Phone
 
+[![Build Status](https://travis-ci.org/NatoBoram/Discord-Phone.svg?branch=master)](https://travis-ci.org/NatoBoram/Discord-Phone)
+
 Simple phone call bot for Discord using [DiscordGo](https://github.com/bwmarrin/discordgo).
 
 You can invite this bot by clicking [here](https://discordapp.com/api/oauth2/authorize?client_id=384692861314007040&permissions=379969&scope=bot). Just be aware it isn't well-polished and you **will** encounter shenanigans.
