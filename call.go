@@ -86,11 +86,20 @@ func createCall(s *discordgo.Session, m *discordgo.MessageCreate) {
 			Calls[fromChannel.ID] = rsfa(Calls[fromChannel.ID], to)
 			Calls[fromChannel.ID] = append(Calls[fromChannel.ID], to)
 
-		} else {
+			// Feedback
+			_, err = s.ChannelMessageSend(fromChannel.ID, "This channel is already calling <#"+toChannel.ID+">.")
+			if err != nil {
+				fmt.Println("Couldn't send a message.")
+				fmt.Println("Channel : " + fromChannel.ID)
+				fmt.Println(err.Error())
+			}
 
-			// New channel?
-			Calls[fromChannel.ID] = []string{to}
+			// Don't bother with the rest if refreshing a call.
+			return
 		}
+
+		// New channel?
+		Calls[fromChannel.ID] = []string{to}
 	}
 
 	// Save
