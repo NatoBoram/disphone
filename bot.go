@@ -1,49 +1,52 @@
-package bot
+package main
 
 import (
 	"fmt"
+	"os"
 	"strings"
-
-	"github.com/NatoBoram/Discord-Phone/config"
 
 	"github.com/bwmarrin/discordgo"
 )
 
 // BotID : Numerical ID of the bot
 var BotID string
-var goBot *discordgo.Session
 
 // Globals
-var callPrefix = "call "
-var hangUpPrefix = "hang up "
+const (
+	callPrefix   = "call "
+	hangUpPrefix = "hang up "
+)
 
 // Start : Starts the bot.
 func Start() {
 
 	// Go online!
-	goBot, err := discordgo.New("Bot " + config.Token)
+	session, err := discordgo.New("Bot " + Token)
 	if err != nil {
 		fmt.Println("Couldn't get online.")
 		fmt.Println(err.Error())
+		os.Exit(1)
 		return
 	}
 
 	// Get Bot ID
-	u, err := goBot.User("@me")
+	u, err := session.User("@me")
 	if err != nil {
 		fmt.Println("Couldn't get the BotID.")
 		fmt.Println(err.Error())
+		os.Exit(1)
 		return
 	}
 	BotID = u.ID
 
 	// Hey, listen!
-	goBot.AddHandler(messageCreateHandler)
+	session.AddHandler(messageCreateHandler)
 
 	// Crash on error
-	err = goBot.Open()
+	err = session.Open()
 	if err != nil {
 		fmt.Println(err.Error())
+		os.Exit(1)
 		return
 	}
 
@@ -77,7 +80,7 @@ func messageCreateHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 
 	// Guild Owner
-	if m.Author.ID == guild.OwnerID {
+	if m.Author.ID == guild.OwnerID || m.Author.ID == BotMaster {
 
 		// Starting a call?
 		if strings.HasPrefix(m.Content, callPrefix) {
@@ -93,6 +96,6 @@ func messageCreateHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 
 	// Foward
-	config.Clean(s)
+	Clean(s)
 	foward(s, m)
 }
