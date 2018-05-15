@@ -82,20 +82,24 @@ func createCall(s *discordgo.Session, m *discordgo.MessageCreate) {
 		_, exists := Calls[fromChannel.ID]
 		if exists {
 
+			// Currently calling this channel?
+			if csia(Calls[fromChannel.ID], to) {
+
+				// Feedback
+				_, err = s.ChannelMessageSend(fromChannel.ID, "This channel is already calling <#"+toChannel.ID+">.")
+				if err != nil {
+					fmt.Println("Couldn't send a message.")
+					fmt.Println("Channel : " + fromChannel.ID)
+					fmt.Println(err.Error())
+				}
+
+				// Don't bother with the rest if refreshing a call.
+				return
+			}
+
 			// Existing channel?
 			Calls[fromChannel.ID] = rsfa(Calls[fromChannel.ID], to)
 			Calls[fromChannel.ID] = append(Calls[fromChannel.ID], to)
-
-			// Feedback
-			_, err = s.ChannelMessageSend(fromChannel.ID, "This channel is already calling <#"+toChannel.ID+">.")
-			if err != nil {
-				fmt.Println("Couldn't send a message.")
-				fmt.Println("Channel : " + fromChannel.ID)
-				fmt.Println(err.Error())
-			}
-
-			// Don't bother with the rest if refreshing a call.
-			return
 		}
 
 		// New channel?
@@ -142,7 +146,7 @@ func hangUp(s *discordgo.Session, m *discordgo.MessageCreate) {
 	// Look for ChannelID
 	split := strings.SplitAfter(command, hangUpPrefix)
 
-	if len(split) == 2 {
+	if len(split) != 2 {
 		return
 	}
 	to := strings.Trim(split[1], " ")
@@ -150,20 +154,33 @@ func hangUp(s *discordgo.Session, m *discordgo.MessageCreate) {
 	// Remove call
 	_, exists := Calls[m.ChannelID]
 	if exists {
-		Calls[m.ChannelID] = rsfa(Calls[m.ChannelID], to)
+
+		// If TO is inside FROM
+		if csia(Calls[m.ChannelID], to) {
+
+			Calls[m.ChannelID] = rsfa(Calls[m.ChannelID], to)
+
+			// Feedback
+			_, err := s.ChannelMessageSend(m.ChannelID, "Call to <#"+to+"> was interrupted.")
+			if err != nil {
+				fmt.Println("Couldn't send a message.")
+				fmt.Println("Channel : " + m.ChannelID)
+				fmt.Println(err.Error())
+			}
+
+			// Save
+			WriteCalls()
+			return
+		}
 	}
 
-	// Feedback
-	_, err := s.ChannelMessageSend(m.ChannelID, "Call to <#"+to+"> was interrupted.")
+	// Nope
+	_, err := s.ChannelMessageSend(m.ChannelID, "This channel wasn't calling <#"+to+">.")
 	if err != nil {
 		fmt.Println("Couldn't send a message.")
 		fmt.Println("Channel : " + m.ChannelID)
 		fmt.Println(err.Error())
-
 	}
-
-	// Save
-	WriteCalls()
 }
 
 func foward(s *discordgo.Session, m *discordgo.MessageCreate) {

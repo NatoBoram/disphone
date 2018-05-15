@@ -10,3 +10,13 @@ func rsfa(a []string, s string) []string {
 	}
 	return n
 }
+
+// csia : Check String Inside Array
+func csia(a []string, s string) bool {
+	for _, v := range a {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}
