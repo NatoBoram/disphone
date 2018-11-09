@@ -1,0 +1,15 @@
+image: golang:1.11
+
+before_script:
+  - go get -u -v -fix gitlab.com/NatoBoram/Discord-Phone
+  - go clean
+
+build:
+  stage: build
+  script:
+    - go build
+
+test:
+  stage: test
+  script:
+    - go test ./...
