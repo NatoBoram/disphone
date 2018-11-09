@@ -1,16 +1,16 @@
 package main
 
+import "os"
+
+// Paths
 const (
+	rootFolder   = "./DiscordPhone"
+	discordPath  = rootFolder + "/discord.json"
+	databasePath = rootFolder + "/database.json"
+)
 
-	// Folder is the folder where the config should be stored.
-	Folder = "./DiscordPhone/"
-
-	// TokenPath is a path towards the token.
-	TokenPath = Folder + "token.json"
-
-	// MasterPath is a path towards Master's ID.
-	MasterPath = Folder + "master.json"
-
-	// CallsPath is a path towards the calls.
-	CallsPath = Folder + "calls.json"
+// Permissions
+const (
+	permPrivateDirectory os.FileMode = 0700
+	permPrivateFile      os.FileMode = 0600
 )
