@@ -1,16 +1,17 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
-	"strings"
 
 	"github.com/bwmarrin/discordgo"
 )
 
+/*
 func createCall(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 	// Look for ChannelID
-	split := strings.SplitAfter(m.Content, callPrefix)
+	split := strings.SplitAfter(m.Content, "call")
 
 	if len(split) != 2 {
 		return
@@ -137,14 +138,14 @@ func createCall(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 func hangUp(s *discordgo.Session, m *discordgo.MessageCreate) {
 
-	if m.Author.ID == BotID {
+	if m.Author.ID == me.ID {
 		return
 	}
 
 	command := m.Content
 
 	// Look for ChannelID
-	split := strings.SplitAfter(command, hangUpPrefix)
+	split := strings.SplitAfter(command, "hang up")
 
 	if len(split) != 2 {
 		return
@@ -250,4 +251,136 @@ func foward(s *discordgo.Session, m *discordgo.MessageCreate) {
 			}
 		}
 	}
+}
+*/
+
+func getCalls(c *discordgo.Channel) (calls []PhoneCall, err error) {
+
+	// Select calls
+	rows, err := selectCalls(c)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+
+		// For each call
+		var call PhoneCall
+		err = rows.Scan(&call.From, &call.To)
+		if err != nil {
+			fmt.Println("Couldn't select a call.")
+			fmt.Println(err.Error())
+			continue
+		}
+
+		// Append
+		calls = append(calls, call)
+	}
+
+	err = rows.Err()
+	return
+}
+
+func getChannels(s *discordgo.Session, calls []PhoneCall) (channels []*discordgo.Channel) {
+
+	// For each calls
+	for _, call := range calls {
+
+		// Check if the channel it's calling exists
+		channel, err := stateChannel(s, call.To)
+		if err != nil {
+
+			fmt.Println("Channel doesn't exist.")
+			fmt.Println(err.Error())
+
+			// Channel doesn't exist, should be removed.
+			_, err = deleteCalls(call.To)
+			if err != nil {
+				fmt.Println("Couldn't delete all references to a channel.")
+				fmt.Println(err.Error())
+			}
+
+			continue
+		}
+
+		// Append
+		channels = append(channels, channel)
+	}
+
+	return
+}
+
+func getValidCalls(s *discordgo.Session, c *discordgo.Channel) (channels []*discordgo.Channel, err error) {
+
+	// Get this channel's calls
+	calls, err := getCalls(c)
+	if err != nil {
+		return
+	}
+
+	// Get channels from calls
+	called := getChannels(s, calls)
+	if err != nil {
+		return
+	}
+
+	// For each channel
+	for _, channel := range called {
+
+		// Check if the channel calls back.
+		_, err = selectCall(channel, c)
+		if err == sql.ErrNoRows {
+
+			// This channel doesn't call back.
+			continue
+
+		} else if err != nil {
+			fmt.Println("Couldn't select a call.")
+			fmt.Println(err.Error())
+			continue
+		}
+
+		// Append
+		channels = append(channels, channel)
+	}
+
+	return
+}
+
+func createMessageEmbed(s *discordgo.Session, g *discordgo.Guild, c *discordgo.Channel, m *discordgo.Message, b *discordgo.Member) (embed *discordgo.MessageEmbed) {
+
+	// Embed
+	embed = &discordgo.MessageEmbed{
+		Color: s.State.UserColor(m.Author.ID, m.ID),
+		Author: &discordgo.MessageEmbedAuthor{
+			URL:     "https://canary.discordapp.com/channels/" + g.ID + "/" + m.ChannelID + "/" + m.ID + "/",
+			Name:    m.Author.Username,
+			IconURL: m.Author.AvatarURL(""),
+		},
+		Footer: &discordgo.MessageEmbedFooter{
+			Text:    g.Name,
+			IconURL: discordgo.EndpointGuildIcon(g.ID, g.Icon),
+		},
+		Timestamp: string(m.Timestamp),
+	}
+
+	// Nick
+	if b.Nick != "" {
+		embed.Author.Name = b.Nick
+	}
+
+	// Description
+	if m.Content != "" {
+		embed.Description = m.Content
+	}
+
+	return
+}
+
+func forward(s *discordgo.Session, g *discordgo.Guild, from *discordgo.Channel, m *discordgo.Message, b *discordgo.Member, to *discordgo.Channel) {
+
+	embed := createMessageEmbed(s, g, from, m, b)
+
+	s.ChannelMessageSendEmbed(to.ID, embed)
 }
