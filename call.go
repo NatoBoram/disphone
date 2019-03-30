@@ -1,253 +1,167 @@
+// To parse and unparse this JSON data, add this code to your project and do:
+//
+//    call, err := UnmarshalCall(bytes)
+//    bytes, err = call.Marshal()
+
 package main
 
 import (
-	"fmt"
-	"strings"
+	"bytes"
+	"encoding/gob"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/dgraph-io/badger"
+
+	"github.com/Necroforger/dgrouter/exrouter"
 )
 
-func createCall(s *discordgo.Session, m *discordgo.MessageCreate) {
+// CallID represents an incomplete call.
+type CallID struct {
+	From string   `json:"From"`
+	To   []string `json:"To"`
+}
 
-	// Look for ChannelID
-	split := strings.SplitAfter(m.Content, callPrefix)
+// Call represents an incomplete call.
+type Call struct {
+	From *discordgo.Channel   `json:"From"`
+	To   []*discordgo.Channel `json:"To"`
+}
 
-	if len(split) != 2 {
-		return
-	}
+func encodeString(s string) (b []byte, err error) {
+	buffer := &bytes.Buffer{}
+	err = gob.NewEncoder(buffer).Encode(s)
+	b = buffer.Bytes()
+	return
+}
 
-	// Get channel structure
-	fromChannel, err := s.State.Channel(m.ChannelID)
-	if err != nil {
-		fmt.Println("Couldn't get a channel structure.")
-		fmt.Println("Message : " + m.Content)
-		fmt.Println(err.Error())
-		return
-	}
+func decodeString(b []byte) (s string, err error) {
+	buffer := &bytes.Buffer{}
+	err = gob.NewDecoder(buffer).Decode(&s)
+	return
+}
 
-	// Get channel structure
-	to := strings.Trim(split[1], " ")
-	toChannel, err := s.State.Channel(to)
-	if err != nil {
+func encodeStrings(s []string) (b []byte, err error) {
+	buffer := &bytes.Buffer{}
+	err = gob.NewEncoder(buffer).Encode(s)
+	b = buffer.Bytes()
+	return
+}
 
-		// Just in case
-		fmt.Println("Couldn't get a channel structure.")
-		fmt.Println("Channel ID : " + to)
-		fmt.Println(err.Error())
+func decodeStrings(b []byte) (s []string, err error) {
+	buffer := &bytes.Buffer{}
+	err = gob.NewDecoder(buffer).Decode(&s)
+	return
+}
 
-		// Feedback
-		_, err := s.ChannelMessageSend(fromChannel.ID, "Channel `"+to+"` doesn't exist.")
+func toChannels(ctx *exrouter.Context, ids []string, onErr func(string, error)) (channels []*discordgo.Channel) {
+	for _, id := range ids {
+		channel, err := ctx.Channel(id)
 		if err != nil {
-			fmt.Println("Couldn't send a message.")
-			fmt.Println("Channel : " + fromChannel.Name)
-			fmt.Println(err.Error())
+			onErr(id, err)
+			continue
 		}
+		channels = append(channels, channel)
+	}
+	return
+}
 
-		return
+func insertCall(ctx *exrouter.Context, from string, to []string, txn *badger.Txn) (err error) {
+
+	// String to bytes
+	bFrom, err := encodeString(from)
+	if err != nil {
+		logctx(ctx, "Couldn't turn the Channel ID into bytes.", nil)
+		return err
 	}
 
-	fmt.Println("Channel name : " + toChannel.Name)
+	// Strings to bytes
+	bTo, err := encodeStrings(to)
+	if err != nil {
+		logctx(ctx, "Couldn't turn Channel IDs into bytes.", nil)
+		return err
+	}
 
-	// Woah there!
-	if toChannel.ID == fromChannel.ID {
+	// Set
+	err = txn.Set(bFrom, bTo)
+	if err != nil {
+		logctx(ctx, "Couldn't save this channel's calls.", nil)
+		return err
+	}
 
-		// Channel called itself
-		_, err := s.ChannelMessageSend(fromChannel.ID, "You can't call yourself!")
+	return err
+}
+
+func appendCall(ctx *exrouter.Context, from string, to string, txn *badger.Txn, item *badger.Item) (duplicate bool, err error) {
+	err = item.Value(func(val []byte) (err error) {
+
+		// Get called channels
+		tos, err := decodeStrings(val)
 		if err != nil {
-			fmt.Println("Couldn't send a message.")
-			fmt.Println("Channel : " + fromChannel.Name)
-			fmt.Println(err.Error())
-		}
-		return
-
-	} else if toChannel.Type != discordgo.ChannelTypeGuildText {
-
-		// Channel is not a text channel
-		_, err := s.ChannelMessageSend(fromChannel.ID, "<#"+toChannel.ID+"> is not a text channel.")
-		if err != nil {
-			fmt.Println("Couldn't send a message.")
-			fmt.Println("Channel : " + fromChannel.Name)
-			fmt.Println(err.Error())
+			logctx(ctx, "Couldn't decode Channel IDs.", err)
 			return
 		}
+
+		// Check for duplicates
+		duplicate = csia(tos, to)
+		if duplicate {
+			// Don't update
+		} else {
+
+			// Add this one
+			tos = append(tos, to)
+
+			// Save them
+			return insertCall(ctx, from, tos, txn)
+		}
+		return
+	})
+	return
+}
+
+func selectCall(ctx *exrouter.Context, channel *discordgo.Channel) (call *CallID, err error) {
+	bid, err := encodeString(channel.ID)
+	if err != nil {
+		logctx(ctx, "Couldn't encode a Channel ID.", nil)
 		return
 	}
 
-	// First call ever?
-	if len(Calls) == 0 {
-		Calls = make(map[string][]string)
-		Calls[fromChannel.ID] = []string{to}
-	} else {
+	err = db.View(func(txn *badger.Txn) (err error) {
 
-		_, exists := Calls[fromChannel.ID]
-		if exists {
+		// Get a channel's calls
+		item, err := txn.Get(bid)
+		if err != nil {
+			logctx(ctx, "Couldn't get a call.", nil)
+			return
+		}
 
-			// Currently calling this channel?
-			if csia(Calls[fromChannel.ID], to) {
+		item.Value(func(val []byte) (err error) {
 
-				// Feedback
-				_, err = s.ChannelMessageSend(fromChannel.ID, "This channel is already calling <#"+toChannel.ID+">.")
-				if err != nil {
-					fmt.Println("Couldn't send a message.")
-					fmt.Println("Channel : " + fromChannel.ID)
-					fmt.Println(err.Error())
-				}
-
-				// Don't bother with the rest if refreshing a call.
+			// Get called channels
+			tos, err := decodeStrings(val)
+			if err != nil {
+				logctx(ctx, "Couldn't decode Channel IDs.", nil)
 				return
 			}
 
-			// Existing channel?
-			Calls[fromChannel.ID] = rsfa(Calls[fromChannel.ID], to)
-			Calls[fromChannel.ID] = append(Calls[fromChannel.ID], to)
-		}
+			// Return the Call IDs
+			call = &CallID{
+				From: channel.ID,
+				To:   tos,
+			}
 
-		// New channel?
-		Calls[fromChannel.ID] = []string{to}
-	}
-
-	// Save
-	go WriteCalls()
-
-	// Get the guild structure
-	toGuild, err := s.State.Guild(toChannel.GuildID)
-	if err != nil {
-		fmt.Println("Couldn't get a guild structure.")
-		fmt.Println("Channel : " + toChannel.Name)
-		fmt.Println(err.Error())
+			return
+		})
 		return
-	}
-
-	// Feedback
-	_, err = s.ChannelMessageSend(fromChannel.ID, "Call to <#"+toChannel.ID+"> has started.")
-	if err != nil {
-		fmt.Println("Couldn't send a message.")
-		fmt.Println("Channel : " + fromChannel.ID)
-		fmt.Println(err.Error())
-	}
-
-	// Alert the other
-	_, err = s.ChannelMessageSend(toChannel.ID, "<@"+toGuild.OwnerID+"> **"+m.Author.Username+"** is calling from <#"+fromChannel.ID+">. Type `call "+fromChannel.ID+"` to accept.")
-	if err != nil {
-		fmt.Println("Couldn't send a message.")
-		fmt.Println("Channel : " + fromChannel.ID)
-		fmt.Println(err.Error())
-	}
+	})
+	return
 }
 
-func hangUp(s *discordgo.Session, m *discordgo.MessageCreate) {
-
-	if m.Author.ID == BotID {
-		return
-	}
-
-	command := m.Content
-
-	// Look for ChannelID
-	split := strings.SplitAfter(command, hangUpPrefix)
-
-	if len(split) != 2 {
-		return
-	}
-	to := strings.Trim(split[1], " ")
-
-	// Remove call
-	_, exists := Calls[m.ChannelID]
-	if exists {
-
-		// If TO is inside FROM
-		if csia(Calls[m.ChannelID], to) {
-
-			Calls[m.ChannelID] = rsfa(Calls[m.ChannelID], to)
-
-			// Feedback
-			_, err := s.ChannelMessageSend(m.ChannelID, "Call to <#"+to+"> was interrupted.")
-			if err != nil {
-				fmt.Println("Couldn't send a message.")
-				fmt.Println("Channel : " + m.ChannelID)
-				fmt.Println(err.Error())
-			}
-
-			// Save
-			WriteCalls()
-			return
-		}
-	}
-
-	// Nope
-	_, err := s.ChannelMessageSend(m.ChannelID, "This channel wasn't calling <#"+to+">.")
+func (callid CallID) toChannels(ctx *exrouter.Context, onErr func(string, error)) (call *Call) {
+	from, err := ctx.Channel(callid.From)
 	if err != nil {
-		fmt.Println("Couldn't send a message.")
-		fmt.Println("Channel : " + m.ChannelID)
-		fmt.Println(err.Error())
+		onErr(callid.From, err)
 	}
-}
-
-func foward(s *discordgo.Session, m *discordgo.MessageCreate) {
-
-	// No calls are saved?
-	if len(Calls) == 0 {
-		return
-	}
-
-	// Destinations?
-	tos, exists := Calls[m.ChannelID]
-	if exists && len(tos) > 0 {
-
-		// Get source channel
-		fromChannel, err := s.State.Channel(m.ChannelID)
-		if err != nil {
-			fmt.Println("Couldn't get a channel structure.")
-			fmt.Println("Author : " + m.Author.Username)
-			fmt.Println("Message : " + m.Content)
-			fmt.Println(err.Error())
-			return
-		}
-
-		// Clean before fowarding
-		Clean(s)
-
-		// For each to in tos
-		for _, to := range tos {
-
-			// Check if destination exists
-			toChannel, err := s.State.Channel(to)
-			if err != nil {
-				fmt.Println("Found an invalid destination.")
-				fmt.Println(err.Error())
-				Clean(s)
-				return
-			}
-
-			// Check if they call back
-			tos2, exists2 := Calls[to]
-			if exists2 && len(tos2) > 0 {
-
-				// For each in tos2
-				for _, to2 := range tos2 {
-
-					// Check if they call the source
-					if m.ChannelID == to2 {
-
-						// Actual fowarding
-						_, err = s.ChannelMessageSend(toChannel.ID, "**"+m.Author.Username+"** : "+m.Content)
-						if err != nil {
-							fmt.Println("Couldn't foward the message from " + fromChannel.Name + " to " + toChannel.Name + ".")
-							fmt.Println(err.Error())
-							return
-						}
-
-						// Foward attachments
-						for x := 0; x < len(m.Attachments); x++ {
-							_, err = s.ChannelMessageSend(toChannel.ID, m.Attachments[x].URL)
-							if err != nil {
-								fmt.Println("Couldn't foward an attachment from " + fromChannel.Name + " to " + toChannel.Name + ".")
-								fmt.Println(err.Error())
-							}
-						}
-					}
-				}
-			}
-		}
-	}
+	call.From = from
+	call.To = toChannels(ctx, callid.To, onErr)
+	return
 }
