@@ -21,5 +21,5 @@ go get -fix -u github.com/NatoBoram/Discord-Phone
 You need to create a `token.json` file next to `main.go`. Get your token [here](https://discordapp.com/developers/applications/me) and paste it in `token.json` like this :
 
 ```JSON
-"Mzg3Njk1ODcyOTU3MjE4ODE3.DQiNbw.6Fl3teDG1ieDxcFomfTt8UvnDTY"
+"89fe126b-a6e4-4154-8c87-c4c8d7deac70"
 ```
